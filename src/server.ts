@@ -184,7 +184,7 @@ class AppService {
   this.app.set('HEALTH_STATUS', 'SHUTTING_DOWN');
 
   setTimeout(() => {
-    this.app.close(() => {   // ❌ WRONG — app has no close()
+    this.server.close(() => {   // ✅ Correct — close HTTP server
       console.log('Shutdown Complete.');
       process.exit(0);
     });
