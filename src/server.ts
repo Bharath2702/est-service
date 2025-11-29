@@ -201,6 +201,10 @@ class AppService {
   }
 }
 
+const appService = new AppService();
+appService.init();
+appService.start();
+
 export default AppService;
 
 
