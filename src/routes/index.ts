@@ -22,6 +22,11 @@ router.get('/userMaster', (req: any, res: any, next: any) => {
     }
 });
 
+// after `const router = Router();`
+router.get('/health', (req: any, res: any) => {
+  return res.status(200).json({ success: true, status: 'OK' });
+});
+
 
 
 export default router;

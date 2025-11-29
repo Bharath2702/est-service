@@ -32,26 +32,36 @@ class AppService {
   }
 
   public initializeApp() {
-    this.app.use(cors({ origin: 'http://localhost:9001' }));
-    // Set a timeout for incoming requests (5 minutes)
-    this.app.use(timeout('5m'));
- 
-    // Set a timeout for response processing (5 minutes)
-    this.app.use((req: any, res: any, next: any) => {
-      req.setTimeout(300000); // Timeout for request
-      res.setTimeout(300000, () => { // Timeout for response
-        console.error(`Request timed out: ${req.url}`);
-        res.status(504).send('Request timed out');
-      });
-      next();
+  // CORS + basic timeout
+  this.app.use(cors({ origin: process.env.CORS_ORIGIN || 'http://localhost:9001' }));
+  this.app.use(timeout('5m'));
+
+  // Ensure request/response timeouts are applied early
+  this.app.use((req: any, res: any, next: any) => {
+    req.setTimeout(300000); // 5 minutes
+    res.setTimeout(300000, () => {
+      console.error(`Request timed out: ${req.url}`);
+      res.status(504).send('Request timed out');
     });
-    this.app.use('/api/v1', routes);
-    this.app.use(morgan('dev'));
-    this.app.use(express.json());
-    this.app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-    this.app.use(bodyParser.json({ limit: "50mb" }));
-    console.log(1138 * 100);
-  }
+    next();
+  });
+
+  // Logging and body-parsing MUST come before route registration
+  this.app.use(morgan('dev'));
+  this.app.use(express.json()); // express's built-in body parser
+  this.app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+  // bodyParser.json() is redundant with express.json(), but kept for compatibility:
+  this.app.use(bodyParser.json({ limit: '50mb' }));
+
+  // Compression (optional) — keep after body-parsers but before routes
+  this.app.use(compression({ filter: this.shouldCompress }));
+
+  // Finally mount API routes
+  this.app.use('/api/v1', routes);
+
+  // Keep any dev-only console value
+  console.log(1138 * 100);
+}
 
   public async initDB() {
     try {
@@ -170,18 +180,16 @@ class AppService {
    * @memberof Service
    */
   public stop() {
-    console.log('Starting graceful shutdown...');
-    this.app.set('HEALTH_STATUS', 'SHUTTING_DOWN');
+  console.log('Starting graceful shutdown...');
+  this.app.set('HEALTH_STATUS', 'SHUTTING_DOWN');
 
-    // LoadingDock.readShutdown();
-
-    setTimeout(() => {
-      this.app.close(() => {
-        console.log('Shutdown Complete.');
-        process.exit(0);
-      });
-    }, 3000);
-  }
+  setTimeout(() => {
+    this.app.close(() => {   // ❌ WRONG — app has no close()
+      console.log('Shutdown Complete.');
+      process.exit(0);
+    });
+  }, 3000);
+}
 
   public shouldCompress(req: any, res: any) {
     if (req.headers['x-no-compression']) {
