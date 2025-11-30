@@ -68,6 +68,6 @@ const User = database_1.sequelize.define("users", {
 }, {
     collate: 'utf8mb4_general_ci',
     timestamps: true,
-    tableName: 'mdm_users'
+    tableName: 'users'
 });
 exports.default = User;

@@ -23,4 +23,8 @@ router.get('/userMaster', (req, res, next) => {
         });
     }
 });
+// after `const router = Router();`
+router.get('/health', (req, res) => {
+    return res.status(200).json({ success: true, status: 'OK' });
+});
 exports.default = router;

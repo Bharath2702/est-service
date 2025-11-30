@@ -66,23 +66,29 @@ class AppService {
         // this.initCronJobs();
     }
     initializeApp() {
-        this.app.use((0, cors_1.default)({ origin: 'http://localhost:9001' }));
-        // Set a timeout for incoming requests (5 minutes)
+        // CORS + basic timeout
+        this.app.use((0, cors_1.default)({ origin: process.env.CORS_ORIGIN || 'http://localhost:9001' }));
         this.app.use((0, connect_timeout_1.default)('5m'));
-        // Set a timeout for response processing (5 minutes)
+        // Ensure request/response timeouts are applied early
         this.app.use((req, res, next) => {
-            req.setTimeout(300000); // Timeout for request
+            req.setTimeout(300000); // 5 minutes
             res.setTimeout(300000, () => {
                 console.error(`Request timed out: ${req.url}`);
                 res.status(504).send('Request timed out');
             });
             next();
         });
-        this.app.use('/api/v1', index_1.default);
+        // Logging and body-parsing MUST come before route registration
         this.app.use((0, morgan_1.default)('dev'));
-        this.app.use(express_1.default.json());
+        this.app.use(express_1.default.json()); // express's built-in body parser
         this.app.use(express_1.default.urlencoded({ extended: true, limit: '50mb' }));
-        this.app.use(body_parser_1.default.json({ limit: "50mb" }));
+        // bodyParser.json() is redundant with express.json(), but kept for compatibility:
+        this.app.use(body_parser_1.default.json({ limit: '50mb' }));
+        // Compression (optional) — keep after body-parsers but before routes
+        this.app.use((0, compression_1.default)({ filter: this.shouldCompress }));
+        // Finally mount API routes
+        this.app.use('/api/v1', index_1.default);
+        // Keep any dev-only console value
         console.log(1138 * 100);
     }
     initDB() {
@@ -188,9 +194,8 @@ class AppService {
     stop() {
         console.log('Starting graceful shutdown...');
         this.app.set('HEALTH_STATUS', 'SHUTTING_DOWN');
-        // LoadingDock.readShutdown();
         setTimeout(() => {
-            this.app.close(() => {
+            this.server.close(() => {
                 console.log('Shutdown Complete.');
                 process.exit(0);
             });
@@ -205,4 +210,7 @@ class AppService {
         return compression_1.default.filter(req, res);
     }
 }
+const appService = new AppService();
+appService.init();
+appService.start();
 exports.default = AppService;
